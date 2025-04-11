@@ -1,29 +1,25 @@
-name: Auto-merge Dependabot PRs
+name: Dependabot auto-merge
+on: pull_request
 
-on:
-  pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  auto-approve-and-merge:
-    if: github.actor == 'dependabot[bot]'
+  dependabot:
     runs-on: ubuntu-latest
-
-    permissions:
-      pull-requests: write
-      contents: write
-
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     steps:
-      - name: Auto-approve
-        uses: hmarr/auto-approve-action@v3
+      - name: Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      - name: Auto-merge changes from Dependabot
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major' || steps.metadata.outputs.package-ecosystem == 'github_actions'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
-      - name: Auto-merge
-        uses: peter-evans/enable-pull-request-automerge@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          merge-method: squash
+# based on https://doc.nais.io/build/how-to/dependabot-auto-merge/
